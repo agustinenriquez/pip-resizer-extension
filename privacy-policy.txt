@@ -1,0 +1,30 @@
+📜 Privacy Policy for Vertical Video Converter
+
+1. Introduction
+
+Thank you for using Vertical Video Converter. Your privacy is important to us, and we want to be transparent about how our extension works.
+
+2. Data Collection
+
+This extension does not collect, store, share, or transmit any personal data, browsing activity, or user interactions.
+
+3. Permissions
+
+The extension requires the following permissions to function:
+- `activeTab` – This allows the extension to modify videos on the active tab.
+- `scripting` – This is used to inject JavaScript to crop videos into a vertical format.
+
+These permissions are used only for the core functionality of the extension and do not involve data collection.
+
+4. Third-Party Services
+
+This extension does not use or integrate with third-party services, tracking systems, or analytics tools.
+
+5. Changes to This Policy
+
+If any changes are made to this policy, they will be reflected on this page with an updated "Effective Date."
+
+6. Contact
+
+If you have any questions about this Privacy Policy, please contact us at:
+📧 cagustinenriquez@gmail.com

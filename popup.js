@@ -9,6 +9,7 @@ document.getElementById("pip-btn").addEventListener("click", async () => {
             let video = document.querySelector("video");
             if (!video) {
                 // alert("No video found!");
+                console.log("No video found!");
                 return;
             }
 
@@ -121,7 +122,8 @@ document.getElementById("pip-btn").addEventListener("click", async () => {
                         // Remove floating window after PiP activation (optional)
                         floatingContainer.remove();
                     } catch (error) {
-                        alert("PiP mode failed: " + error);
+                        console.log("PiP mode failed: ", error);
+                        // alert("PiP mode failed: " + error);
                     }
                 });
             }

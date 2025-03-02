@@ -1,7 +1,7 @@
 (async function() {
     const video = document.querySelector("video");
     if (!video) {
-        alert("No video found!");
+        console.log("No video found!");
         return;
     }
 

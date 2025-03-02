@@ -1,26 +1,15 @@
 {
-    "manifest_version": 3,
-    "name": "Custom PiP Resizer",
-    "version": "1.0",
-    "description": "Forces a custom width and height on Picture-in-Picture mode.",
-    "permissions": ["activeTab", "scripting"],
-    "host_permissions": ["*://*/*"],
-    "background": {
-      "service_worker": "background.js"
-    },
-    "action": {
-      "default_popup": "popup.html",
-      "default_icon": {
-        "16": "icon.png",
-        "48": "icon.png",
-        "128": "icon.png"
-      }
-    },
-    "content_scripts": [
-      {
-        "matches": ["*://*/*"],
-        "js": ["content.js"]
-      }
-    ]
+  "manifest_version": 3,
+  "name": "Vertical Video Converter",
+  "version": "1.0",
+  "description": "Convert horizontal videos into vertical format and send them to Picture-in-Picture mode.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
 }
-  
