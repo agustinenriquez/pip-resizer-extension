@@ -1,0 +1,3 @@
+document.addEventListener('DOMContentLoaded', () => {
+    // ...load and save options logic...
+});
