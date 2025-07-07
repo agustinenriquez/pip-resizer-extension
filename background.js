@@ -513,6 +513,46 @@ function createVideoProcessor(config) {
                         min-width: 30px;
                     }
                     
+                    .toggle-controls {
+                        position: absolute;
+                        top: 10px;
+                        right: 10px;
+                        background: rgba(128, 128, 128, 0.7);
+                        color: white;
+                        border: none;
+                        padding: 8px 12px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        font-weight: bold;
+                        backdrop-filter: blur(5px);
+                        transition: all 0.3s ease;
+                        z-index: 11;
+                    }
+                    
+                    .toggle-controls:hover {
+                        background: rgba(90, 90, 90, 0.9);
+                        transform: translateY(-1px);
+                    }
+                    
+                    .controls-hidden .pan-slider,
+                    .controls-hidden .zoom-slider,
+                    .controls-hidden .pan-controls,
+                    .controls-hidden .zoom-controls {
+                        opacity: 0;
+                        pointer-events: none;
+                        transition: opacity 0.3s ease;
+                    }
+                    
+                    .controls-visible .pan-slider,
+                    .controls-visible .zoom-slider,
+                    .controls-visible .pan-controls,
+                    .controls-visible .zoom-controls {
+                        opacity: 1;
+                        pointer-events: auto;
+                        transition: opacity 0.3s ease;
+                    }
+                    
                     .slider {
                         width: 100%;
                         height: 4px;
@@ -547,8 +587,10 @@ function createVideoProcessor(config) {
                 </style>
             </head>
             <body>
-                <div class="video-container">
+                <div class="video-container controls-hidden" id="video-container">
                     <video id="cropped-video" controls></video>
+                    
+                    <button id="toggle-controls" class="toggle-controls">👁️‍🗨️</button>
                     
                     <div class="zoom-controls">
                         <button id="zoom-out" class="zoom-button">-</button>
@@ -592,6 +634,8 @@ function createVideoProcessor(config) {
             const zoomInBtn = newWindow.document.getElementById('zoom-in');
             const zoomOutBtn = newWindow.document.getElementById('zoom-out');
             const zoomResetBtn = newWindow.document.getElementById('zoom-reset');
+            const toggleBtn = newWindow.document.getElementById('toggle-controls');
+            const videoContainer = newWindow.document.getElementById('video-container');
             
             // Set the video stream
             videoElement.srcObject = stream;
@@ -601,6 +645,28 @@ function createVideoProcessor(config) {
             
             // Initialize sliders with current values
             zoomSlider.value = cropRatio * 100;
+            
+            // Controls visibility state
+            let controlsVisible = false;
+            
+            // Toggle controls visibility
+            function toggleControls() {
+                controlsVisible = !controlsVisible;
+                
+                if (controlsVisible) {
+                    videoContainer.className = 'video-container controls-visible';
+                    toggleBtn.textContent = '👁️';
+                    toggleBtn.title = 'Hide controls';
+                } else {
+                    videoContainer.className = 'video-container controls-hidden';
+                    toggleBtn.textContent = '👁️‍🗨️';
+                    toggleBtn.title = 'Show controls';
+                }
+            }
+            
+            // Toggle button event
+            toggleBtn.addEventListener('click', toggleControls);
+            toggleBtn.title = 'Show controls';
             
             // Pan control functionality
             function updatePan(percentage) {
@@ -716,6 +782,13 @@ function createVideoProcessor(config) {
                     case '1':
                         e.preventDefault();
                         updateZoom(100); // Full width
+                        break;
+                        
+                    // Toggle controls
+                    case 'h':
+                    case 'H':
+                        e.preventDefault();
+                        toggleControls();
                         break;
                 }
             });
