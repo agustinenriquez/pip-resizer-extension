@@ -313,7 +313,7 @@ function createVideoProcessor(config) {
         // ----- C) Create a new popup window for the cropped video -----
         const windowFeatures = `
             width=${config.CONTAINER_WIDTH},
-            height=${config.CONTAINER_HEIGHT + 80},
+            height=${config.CONTAINER_HEIGHT},
             left=${screen.width - config.CONTAINER_WIDTH - 100},
             top=100,
             resizable=yes,
@@ -344,11 +344,12 @@ function createVideoProcessor(config) {
                         background: black;
                         font-family: Arial, sans-serif;
                         overflow: hidden;
+                        position: relative;
                     }
                     
                     .video-container {
                         width: 100%;
-                        height: calc(100vh - 40px);
+                        height: 100vh;
                         position: relative;
                     }
                     
@@ -358,43 +359,38 @@ function createVideoProcessor(config) {
                         object-fit: fill;
                     }
                     
-                    .controls {
-                        height: 40px;
-                        background: linear-gradient(135deg, #007bff 0%, #6c757d 100%);
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        padding: 0 10px;
-                        color: white;
-                    }
-                    
-                    .controls button {
-                        background: #28a745;
+                    .pip-button {
+                        position: absolute;
+                        bottom: 10px;
+                        right: 10px;
+                        background: rgba(40, 167, 69, 0.7);
                         color: white;
                         border: none;
-                        padding: 6px 12px;
-                        border-radius: 4px;
+                        padding: 8px 16px;
+                        border-radius: 6px;
                         cursor: pointer;
                         font-size: 12px;
+                        backdrop-filter: blur(5px);
+                        transition: all 0.3s ease;
+                        z-index: 10;
                     }
                     
-                    .controls button:hover {
-                        background: #1e7e34;
+                    .pip-button:hover {
+                        background: rgba(30, 126, 52, 0.9);
+                        transform: translateY(-1px);
                     }
                     
-                    .title {
-                        font-size: 12px;
-                        font-weight: 500;
+                    .pip-button:disabled {
+                        background: rgba(108, 117, 125, 0.7);
+                        cursor: not-allowed;
+                        transform: none;
                     }
                 </style>
             </head>
             <body>
-                <div class="controls">
-                    <span class="title">PiP Resizer - Cropped Video</span>
-                    <button id="pip-button">Enter PiP</button>
-                </div>
                 <div class="video-container">
                     <video id="cropped-video" controls></video>
+                    <button id="pip-button" class="pip-button">Enter PiP</button>
                 </div>
             </body>
             </html>
