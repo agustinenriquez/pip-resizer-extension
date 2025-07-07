@@ -1,11 +1,137 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PiP Resizer</title>
+    <title>PiP Resizer Options</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .options-container {
+            max-width: 500px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group input:invalid {
+            border-color: #dc3545;
+        }
+        
+        .form-group small {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .button-group button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        #status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
 </head>
 <body>
-    <button id="pip-btn">Activate PiP</button>
-    <script src="popup.js"></script>
+    <div class="options-container">
+        <h1>PiP Resizer Options</h1>
+        
+        <div class="form-group">
+            <label for="crop-ratio">Crop Ratio (portion of video width to show)</label>
+            <input type="number" id="crop-ratio" min="0.1" max="1.0" step="0.1" value="0.33">
+            <small>How much of the video width to crop (0.1 = 10%, 1.0 = 100%)</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="container-width">Container Width (pixels)</label>
+            <input type="number" id="container-width" min="200" max="800" value="300">
+            <small>Width of the floating video container (200-800 pixels)</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="container-height">Container Height (pixels)</label>
+            <input type="number" id="container-height" min="300" max="1000" value="500">
+            <small>Height of the floating video container (300-1000 pixels)</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="button-color">Button Color</label>
+            <input type="color" id="button-color" value="#007bff">
+            <small>Color theme for buttons and borders</small>
+        </div>
+        
+        <div class="button-group">
+            <button id="save-options" class="btn-primary">Save Options</button>
+            <button id="reset-options" class="btn-secondary">Reset to Defaults</button>
+        </div>
+        
+        <div id="status"></div>
+    </div>
+    
+    <script src="options.js"></script>
 </body>
 </html>

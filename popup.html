@@ -5,7 +5,22 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <button id="pip-btn">Activate PiP</button>
+    <div class="popup-container">
+        <div class="header">
+            <h1>PiP Resizer</h1>
+            <p>Convert videos to vertical format</p>
+        </div>
+        
+        <div class="main-content">
+            <button id="pip-btn">Activate PiP</button>
+            <div id="status-message"></div>
+        </div>
+        
+        <div class="footer">
+            <a href="options.html" target="_blank" id="options-link">⚙️ Options</a>
+        </div>
+    </div>
+    
     <script src="popup.js"></script>
 </body>
 </html>
