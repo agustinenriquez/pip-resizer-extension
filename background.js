@@ -210,15 +210,29 @@ function createVideoProcessor(config) {
         }
 
         // Calculate crop dimensions using config
-        const sliceWidth = w * config.CROP_RATIO;
+        let cropRatio = config.CROP_RATIO;
+        let sliceWidth = w * cropRatio;
         let sliceX = (w - sliceWidth) / 2; // Start at center
-        const maxSliceX = w - sliceWidth; // Maximum X position
+        let maxSliceX = w - sliceWidth; // Maximum X position
         canvas.width = sliceWidth;
         canvas.height = h;
         
         // Function to update crop position
         function updateCropPosition(newX) {
             sliceX = Math.max(0, Math.min(maxSliceX, newX));
+        }
+        
+        // Function to update crop width
+        function updateCropWidth(newRatio) {
+            cropRatio = Math.max(0.1, Math.min(1.0, newRatio)); // Min 10%, Max 100%
+            sliceWidth = w * cropRatio;
+            maxSliceX = w - sliceWidth;
+            
+            // Adjust X position to keep crop in bounds
+            sliceX = Math.max(0, Math.min(maxSliceX, sliceX));
+            
+            // Update canvas size
+            canvas.width = sliceWidth;
         }
 
         let animationId;
@@ -426,6 +440,21 @@ function createVideoProcessor(config) {
                     
                     .pan-slider {
                         position: absolute;
+                        bottom: 90px;
+                        left: 10px;
+                        right: 10px;
+                        height: 30px;
+                        background: rgba(0, 0, 0, 0.5);
+                        border-radius: 15px;
+                        display: flex;
+                        align-items: center;
+                        padding: 0 10px;
+                        backdrop-filter: blur(5px);
+                        z-index: 10;
+                    }
+                    
+                    .zoom-slider {
+                        position: absolute;
                         bottom: 50px;
                         left: 10px;
                         right: 10px;
@@ -437,6 +466,51 @@ function createVideoProcessor(config) {
                         padding: 0 10px;
                         backdrop-filter: blur(5px);
                         z-index: 10;
+                    }
+                    
+                    .zoom-controls {
+                        position: absolute;
+                        top: 10px;
+                        left: 10px;
+                        display: flex;
+                        gap: 5px;
+                        z-index: 10;
+                    }
+                    
+                    .zoom-button {
+                        background: rgba(255, 152, 0, 0.7);
+                        color: white;
+                        border: none;
+                        padding: 8px 12px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: bold;
+                        backdrop-filter: blur(5px);
+                        transition: all 0.3s ease;
+                        min-width: 40px;
+                    }
+                    
+                    .zoom-button:hover {
+                        background: rgba(230, 137, 0, 0.9);
+                        transform: translateY(-1px);
+                    }
+                    
+                    .zoom-button:active {
+                        transform: translateY(0);
+                    }
+                    
+                    .control-label {
+                        position: absolute;
+                        left: 15px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        color: white;
+                        font-size: 10px;
+                        font-weight: bold;
+                        opacity: 0.8;
+                        pointer-events: none;
+                        min-width: 30px;
                     }
                     
                     .slider {
@@ -476,8 +550,20 @@ function createVideoProcessor(config) {
                 <div class="video-container">
                     <video id="cropped-video" controls></video>
                     
+                    <div class="zoom-controls">
+                        <button id="zoom-out" class="zoom-button">-</button>
+                        <button id="zoom-in" class="zoom-button">+</button>
+                        <button id="zoom-reset" class="zoom-button">⌂</button>
+                    </div>
+                    
                     <div class="pan-slider">
+                        <span class="control-label">PAN</span>
                         <input type="range" id="pan-slider" class="slider" min="0" max="100" value="50">
+                    </div>
+                    
+                    <div class="zoom-slider">
+                        <span class="control-label">ZOOM</span>
+                        <input type="range" id="zoom-slider" class="slider" min="10" max="100" value="33">
                     </div>
                     
                     <div class="pan-controls">
@@ -502,12 +588,19 @@ function createVideoProcessor(config) {
             const panLeftBtn = newWindow.document.getElementById('pan-left');
             const panRightBtn = newWindow.document.getElementById('pan-right');
             const panCenterBtn = newWindow.document.getElementById('pan-center');
+            const zoomSlider = newWindow.document.getElementById('zoom-slider');
+            const zoomInBtn = newWindow.document.getElementById('zoom-in');
+            const zoomOutBtn = newWindow.document.getElementById('zoom-out');
+            const zoomResetBtn = newWindow.document.getElementById('zoom-reset');
             
             // Set the video stream
             videoElement.srcObject = stream;
             videoElement.muted = true;
             videoElement.controls = true;
             videoElement.autoplay = true;
+            
+            // Initialize sliders with current values
+            zoomSlider.value = cropRatio * 100;
             
             // Pan control functionality
             function updatePan(percentage) {
@@ -516,12 +609,27 @@ function createVideoProcessor(config) {
                 panSlider.value = percentage;
             }
             
-            // Slider control
+            // Zoom control functionality
+            function updateZoom(percentage) {
+                const newRatio = percentage / 100;
+                updateCropWidth(newRatio);
+                zoomSlider.value = percentage;
+                
+                // Update pan slider max based on new crop width
+                const currentPanPercent = parseFloat(panSlider.value);
+                updatePan(currentPanPercent);
+            }
+            
+            // Slider controls
             panSlider.addEventListener('input', (e) => {
                 updatePan(parseFloat(e.target.value));
             });
             
-            // Button controls
+            zoomSlider.addEventListener('input', (e) => {
+                updateZoom(parseFloat(e.target.value));
+            });
+            
+            // Pan button controls
             panLeftBtn.addEventListener('click', () => {
                 const currentPercent = parseFloat(panSlider.value);
                 const newPercent = Math.max(0, currentPercent - 10);
@@ -538,17 +646,37 @@ function createVideoProcessor(config) {
                 updatePan(50); // Center position
             });
             
+            // Zoom button controls
+            zoomInBtn.addEventListener('click', () => {
+                const currentPercent = parseFloat(zoomSlider.value);
+                const newPercent = Math.min(100, currentPercent + 10);
+                updateZoom(newPercent);
+            });
+            
+            zoomOutBtn.addEventListener('click', () => {
+                const currentPercent = parseFloat(zoomSlider.value);
+                const newPercent = Math.max(10, currentPercent - 10);
+                updateZoom(newPercent);
+            });
+            
+            zoomResetBtn.addEventListener('click', () => {
+                updateZoom(33); // Reset to default 1/3 ratio
+            });
+            
             // Keyboard controls
             newWindow.document.addEventListener('keydown', (e) => {
-                const currentPercent = parseFloat(panSlider.value);
+                const currentPanPercent = parseFloat(panSlider.value);
+                const currentZoomPercent = parseFloat(zoomSlider.value);
+                
                 switch(e.key) {
+                    // Pan controls
                     case 'ArrowLeft':
                         e.preventDefault();
-                        updatePan(Math.max(0, currentPercent - 5));
+                        updatePan(Math.max(0, currentPanPercent - 5));
                         break;
                     case 'ArrowRight':
                         e.preventDefault();
-                        updatePan(Math.min(100, currentPercent + 5));
+                        updatePan(Math.min(100, currentPanPercent + 5));
                         break;
                     case 'Home':
                         e.preventDefault();
@@ -560,7 +688,34 @@ function createVideoProcessor(config) {
                         break;
                     case ' ':
                         e.preventDefault();
-                        updatePan(50); // Center
+                        updatePan(50); // Center pan
+                        break;
+                        
+                    // Zoom controls
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        updateZoom(Math.min(100, currentZoomPercent + 5));
+                        break;
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        updateZoom(Math.max(10, currentZoomPercent - 5));
+                        break;
+                    case '+':
+                    case '=':
+                        e.preventDefault();
+                        updateZoom(Math.min(100, currentZoomPercent + 10));
+                        break;
+                    case '-':
+                        e.preventDefault();
+                        updateZoom(Math.max(10, currentZoomPercent - 10));
+                        break;
+                    case '0':
+                        e.preventDefault();
+                        updateZoom(33); // Reset zoom
+                        break;
+                    case '1':
+                        e.preventDefault();
+                        updateZoom(100); // Full width
                         break;
                 }
             });
