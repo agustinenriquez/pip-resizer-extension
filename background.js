@@ -467,11 +467,17 @@ function createVideoProcessor(config) {
         });
 
         // ----- C) Create a new popup window for the cropped video -----
+        // Calculate window size to fit screen height with specified dimensions
+        const windowWidth = 482;
+        const windowHeight = Math.min(1050, screen.availHeight - 100); // Fit to screen height with padding
+        const windowLeft = screen.width - windowWidth - 20; // Position on right side with margin
+        const windowTop = Math.max(20, (screen.availHeight - windowHeight) / 2); // Center vertically or near top
+        
         const windowFeatures = `
-            width=${config.CONTAINER_WIDTH},
-            height=${config.CONTAINER_HEIGHT},
-            left=${screen.width - config.CONTAINER_WIDTH - 100},
-            top=100,
+            width=${windowWidth},
+            height=${windowHeight},
+            left=${windowLeft},
+            top=${windowTop},
             resizable=yes,
             scrollbars=no,
             menubar=no,
