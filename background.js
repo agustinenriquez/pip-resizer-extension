@@ -434,7 +434,7 @@ function createVideoProcessor(config) {
                 }
             });
             
-            // Cleanup when window closes
+            // Cleanup when popup window closes
             newWindow.addEventListener('beforeunload', () => {
                 isDrawing = false;
                 if (animationId) {
@@ -448,11 +448,50 @@ function createVideoProcessor(config) {
             });
         });
         
+        // Close popup window when original tab/window is closed or unloaded
+        window.addEventListener('beforeunload', () => {
+            if (newWindow && !newWindow.closed) {
+                newWindow.close();
+            }
+        });
+        
+        // Also close popup if original page is navigated away
+        window.addEventListener('pagehide', () => {
+            if (newWindow && !newWindow.closed) {
+                newWindow.close();
+            }
+        });
+        
+        // Periodically check if original window still exists
+        const windowCheckInterval = setInterval(() => {
+            try {
+                // If we can't access document, the window is probably gone
+                if (!document.body) {
+                    if (newWindow && !newWindow.closed) {
+                        newWindow.close();
+                    }
+                    clearInterval(windowCheckInterval);
+                }
+            } catch (error) {
+                // If there's an error accessing document, close popup
+                if (newWindow && !newWindow.closed) {
+                    newWindow.close();
+                }
+                clearInterval(windowCheckInterval);
+            }
+        }, 2000);
+        
         return { 
             cleanup: () => {
                 isDrawing = false;
                 if (animationId) {
                     cancelAnimationFrame(animationId);
+                }
+                if (keepAliveInterval) {
+                    clearInterval(keepAliveInterval);
+                }
+                if (windowCheckInterval) {
+                    clearInterval(windowCheckInterval);
                 }
                 if (newWindow && !newWindow.closed) {
                     newWindow.close();
