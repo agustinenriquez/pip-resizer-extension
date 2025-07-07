@@ -219,63 +219,90 @@ function createVideoProcessor(config) {
         let isDrawing = true;
         
         function drawFrame() {
-            if (!isDrawing || !originalVideo || originalVideo.readyState < 2) {
-                if (isDrawing) {
-                    animationId = requestAnimationFrame(drawFrame);
-                }
-                return;
-            }
+            if (!isDrawing) return;
             
             try {
-                // Check if video is still valid and playing
-                if (originalVideo.videoWidth === 0 || originalVideo.videoHeight === 0) {
-                    animationId = requestAnimationFrame(drawFrame);
-                    return;
+                // Draw current frame regardless of pause state
+                if (originalVideo && originalVideo.videoWidth > 0 && originalVideo.videoHeight > 0) {
+                    // Clear canvas first
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    ctx.drawImage(
+                        originalVideo,
+                        sliceX, 0,          // source X,Y (start in the middle)
+                        sliceWidth, h,      // source width, height
+                        0, 0,               // destination X,Y in canvas
+                        sliceWidth, h       // destination width, height
+                    );
                 }
-                
-                // Clear canvas first
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                ctx.drawImage(
-                    originalVideo,
-                    sliceX, 0,          // source X,Y (start in the middle)
-                    sliceWidth, h,      // source width, height
-                    0, 0,               // destination X,Y in canvas
-                    sliceWidth, h       // destination width, height
-                );
             } catch (error) {
                 console.error('Canvas drawing error:', error);
                 // Don't stop drawing on error, just skip this frame
             }
             
             if (isDrawing) {
-                animationId = requestAnimationFrame(drawFrame);
+                requestAnimationFrame(drawFrame);
             }
         }
         
         drawFrame(); // start continuous drawing
 
         // ----- B) Create a new <video> that shows this canvas stream -----
-        const stream = canvas.captureStream(30); // 30 FPS
+        const stream = canvas.captureStream(30); // 30 FPS for smooth playback
         const croppedVideo = document.createElement("video");
         croppedVideo.srcObject = stream;
         croppedVideo.muted = true;    // avoid double-audio
         croppedVideo.loop = originalVideo.loop;
         
-        // Sync with original video
-        function syncVideos() {
-            if (!originalVideo.paused && croppedVideo.paused) {
-                croppedVideo.play().catch(console.error);
-            } else if (originalVideo.paused && !croppedVideo.paused) {
-                croppedVideo.pause();
+        // Keep the original video "active" to prevent throttling
+        function keepVideoActive() {
+            try {
+                // Trick browser into thinking video is still visible
+                if (originalVideo.paused && originalVideo.readyState >= 2) {
+                    // Force play if it gets paused by tab switching
+                    originalVideo.play().catch(() => {
+                        // If play fails, try to keep it "warm" by seeking slightly
+                        const currentTime = originalVideo.currentTime;
+                        originalVideo.currentTime = currentTime + 0.001;
+                    });
+                }
+                
+                // Keep requesting frames even when tab is inactive
+                if (originalVideo.videoWidth > 0) {
+                    // This helps prevent the video element from going dormant
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = 1;
+                    tempCanvas.height = 1;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(originalVideo, 0, 0, 1, 1);
+                }
+            } catch (error) {
+                // Ignore errors, just keep trying
             }
         }
         
-        // Listen for original video events
-        originalVideo.addEventListener('play', syncVideos);
-        originalVideo.addEventListener('pause', syncVideos);
-        originalVideo.addEventListener('seeking', syncVideos);
-        originalVideo.addEventListener('seeked', syncVideos);
+        // Run this every few seconds to keep video active
+        const keepAliveInterval = setInterval(keepVideoActive, 2000);
+        
+        // Prevent video from being throttled by browser
+        originalVideo.setAttribute('playsinline', 'true');
+        originalVideo.setAttribute('webkit-playsinline', 'true');
+        
+        // Add visibility change listener to force resume
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Tab became hidden, try to keep video active
+                setTimeout(() => {
+                    if (originalVideo.paused) {
+                        originalVideo.play().catch(console.error);
+                    }
+                }, 100);
+            }
+        });
+        
+        // Force video to stay "in viewport" by making it tiny but visible
+        const originalStyle = originalVideo.style.cssText;
+        originalVideo.style.cssText = originalStyle + '; position: fixed !important; top: -1px !important; left: -1px !important; width: 1px !important; height: 1px !important; opacity: 0.01 !important; z-index: -1 !important; pointer-events: none !important;';
         
         // Better error handling for video play
         croppedVideo.play().catch(err => {
@@ -384,6 +411,9 @@ function createVideoProcessor(config) {
             videoElement.srcObject = stream;
             videoElement.muted = true;
             videoElement.controls = true;
+            videoElement.autoplay = true;
+            
+            // Start video
             videoElement.play().catch(console.error);
             
             // Add PiP functionality to the button
@@ -404,31 +434,17 @@ function createVideoProcessor(config) {
                 }
             });
             
-            // Sync with original video
-            function syncVideos() {
-                if (!originalVideo.paused && videoElement.paused) {
-                    videoElement.play().catch(console.error);
-                } else if (originalVideo.paused && !videoElement.paused) {
-                    videoElement.pause();
-                }
-            }
-            
-            // Listen for original video events
-            originalVideo.addEventListener('play', syncVideos);
-            originalVideo.addEventListener('pause', syncVideos);
-            originalVideo.addEventListener('seeking', syncVideos);
-            originalVideo.addEventListener('seeked', syncVideos);
-            
             // Cleanup when window closes
             newWindow.addEventListener('beforeunload', () => {
                 isDrawing = false;
                 if (animationId) {
                     cancelAnimationFrame(animationId);
                 }
-                originalVideo.removeEventListener('play', syncVideos);
-                originalVideo.removeEventListener('pause', syncVideos);
-                originalVideo.removeEventListener('seeking', syncVideos);
-                originalVideo.removeEventListener('seeked', syncVideos);
+                if (keepAliveInterval) {
+                    clearInterval(keepAliveInterval);
+                }
+                // Restore original video style
+                originalVideo.style.cssText = originalStyle;
             });
         });
         
