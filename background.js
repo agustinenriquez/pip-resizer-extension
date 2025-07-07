@@ -211,9 +211,15 @@ function createVideoProcessor(config) {
 
         // Calculate crop dimensions using config
         const sliceWidth = w * config.CROP_RATIO;
-        const sliceX = (w - sliceWidth) / 2;
+        let sliceX = (w - sliceWidth) / 2; // Start at center
+        const maxSliceX = w - sliceWidth; // Maximum X position
         canvas.width = sliceWidth;
         canvas.height = h;
+        
+        // Function to update crop position
+        function updateCropPosition(newX) {
+            sliceX = Math.max(0, Math.min(maxSliceX, newX));
+        }
 
         let animationId;
         let isDrawing = true;
@@ -385,11 +391,101 @@ function createVideoProcessor(config) {
                         cursor: not-allowed;
                         transform: none;
                     }
+                    
+                    .pan-controls {
+                        position: absolute;
+                        bottom: 10px;
+                        left: 10px;
+                        display: flex;
+                        gap: 5px;
+                        z-index: 10;
+                    }
+                    
+                    .pan-button {
+                        background: rgba(0, 123, 255, 0.7);
+                        color: white;
+                        border: none;
+                        padding: 8px 12px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: bold;
+                        backdrop-filter: blur(5px);
+                        transition: all 0.3s ease;
+                        min-width: 40px;
+                    }
+                    
+                    .pan-button:hover {
+                        background: rgba(0, 86, 179, 0.9);
+                        transform: translateY(-1px);
+                    }
+                    
+                    .pan-button:active {
+                        transform: translateY(0);
+                    }
+                    
+                    .pan-slider {
+                        position: absolute;
+                        bottom: 50px;
+                        left: 10px;
+                        right: 10px;
+                        height: 30px;
+                        background: rgba(0, 0, 0, 0.5);
+                        border-radius: 15px;
+                        display: flex;
+                        align-items: center;
+                        padding: 0 10px;
+                        backdrop-filter: blur(5px);
+                        z-index: 10;
+                    }
+                    
+                    .slider {
+                        width: 100%;
+                        height: 4px;
+                        border-radius: 2px;
+                        background: rgba(255, 255, 255, 0.3);
+                        outline: none;
+                        -webkit-appearance: none;
+                        appearance: none;
+                    }
+                    
+                    .slider::-webkit-slider-thumb {
+                        -webkit-appearance: none;
+                        appearance: none;
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 50%;
+                        background: #007bff;
+                        cursor: pointer;
+                        border: 2px solid white;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    }
+                    
+                    .slider::-moz-range-thumb {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 50%;
+                        background: #007bff;
+                        cursor: pointer;
+                        border: 2px solid white;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    }
                 </style>
             </head>
             <body>
                 <div class="video-container">
                     <video id="cropped-video" controls></video>
+                    
+                    <div class="pan-slider">
+                        <input type="range" id="pan-slider" class="slider" min="0" max="100" value="50">
+                    </div>
+                    
+                    <div class="pan-controls">
+                        <button id="pan-left" class="pan-button">◀</button>
+                        <button id="pan-right" class="pan-button">▶</button>
+                        <button id="pan-center" class="pan-button">⌖</button>
+                    </div>
+                    
                     <button id="pip-button" class="pip-button">Enter PiP</button>
                 </div>
             </body>
@@ -402,12 +498,72 @@ function createVideoProcessor(config) {
         newWindow.addEventListener('load', () => {
             const videoElement = newWindow.document.getElementById('cropped-video');
             const pipButton = newWindow.document.getElementById('pip-button');
+            const panSlider = newWindow.document.getElementById('pan-slider');
+            const panLeftBtn = newWindow.document.getElementById('pan-left');
+            const panRightBtn = newWindow.document.getElementById('pan-right');
+            const panCenterBtn = newWindow.document.getElementById('pan-center');
             
             // Set the video stream
             videoElement.srcObject = stream;
             videoElement.muted = true;
             videoElement.controls = true;
             videoElement.autoplay = true;
+            
+            // Pan control functionality
+            function updatePan(percentage) {
+                const newX = (maxSliceX * percentage) / 100;
+                updateCropPosition(newX);
+                panSlider.value = percentage;
+            }
+            
+            // Slider control
+            panSlider.addEventListener('input', (e) => {
+                updatePan(parseFloat(e.target.value));
+            });
+            
+            // Button controls
+            panLeftBtn.addEventListener('click', () => {
+                const currentPercent = parseFloat(panSlider.value);
+                const newPercent = Math.max(0, currentPercent - 10);
+                updatePan(newPercent);
+            });
+            
+            panRightBtn.addEventListener('click', () => {
+                const currentPercent = parseFloat(panSlider.value);
+                const newPercent = Math.min(100, currentPercent + 10);
+                updatePan(newPercent);
+            });
+            
+            panCenterBtn.addEventListener('click', () => {
+                updatePan(50); // Center position
+            });
+            
+            // Keyboard controls
+            newWindow.document.addEventListener('keydown', (e) => {
+                const currentPercent = parseFloat(panSlider.value);
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        updatePan(Math.max(0, currentPercent - 5));
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        updatePan(Math.min(100, currentPercent + 5));
+                        break;
+                    case 'Home':
+                        e.preventDefault();
+                        updatePan(0); // Far left
+                        break;
+                    case 'End':
+                        e.preventDefault();
+                        updatePan(100); // Far right
+                        break;
+                    case ' ':
+                        e.preventDefault();
+                        updatePan(50); // Center
+                        break;
+                }
+            });
             
             // Start video
             videoElement.play().catch(console.error);
