@@ -4,6 +4,85 @@ chrome.runtime.onInstalled.addListener(() => {
 
 console.log("Background script loaded!");
 
+// Handle keyboard shortcut commands
+chrome.commands.onCommand.addListener(async (command) => {
+    console.log('Command received:', command);
+    
+    if (command === 'activate-pip') {
+        // Get the active tab
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        
+        if (tab) {
+            console.log('Activating PiP via keyboard shortcut');
+            // Trigger the same function as clicking the extension icon
+            activatePiP(tab);
+        }
+    }
+});
+
+// Shared function for PiP activation
+async function activatePiP(tab) {
+    try {
+        if (!tab) {
+            console.error('No active tab found');
+            return;
+        }
+        
+        console.log('Tab info:', tab.url, tab.id);
+        
+        const config = await loadConfig();
+        console.log('Config loaded:', config);
+        
+        // First inject a simple test to see if injection works
+        await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            function: () => {
+                console.log('Script injected successfully via keyboard shortcut!');
+                const testDiv = document.createElement('div');
+                testDiv.id = 'pip-test-message';
+                testDiv.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    left: 20px;
+                    background: #28a745;
+                    color: white;
+                    padding: 10px;
+                    border-radius: 5px;
+                    z-index: 999999;
+                    font-family: Arial, sans-serif;
+                `;
+                testDiv.textContent = 'PiP activated via keyboard! (Ctrl+Q)';
+                document.body.appendChild(testDiv);
+                
+                setTimeout(() => {
+                    if (testDiv.parentNode) testDiv.remove();
+                }, 3000);
+            }
+        });
+        
+        // Then inject the main processor
+        await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            function: createVideoProcessor,
+            args: [config]
+        });
+        
+        console.log('Video processor activated via keyboard shortcut!');
+    } catch (error) {
+        console.error('PiP activation failed:', error);
+        // Show user feedback via notification
+        try {
+            await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                function: showErrorMessage,
+                args: [error.message]
+            });
+        } catch (e) {
+            console.error('Could not show error message:', e);
+        }
+    }
+}
+
 // Default configuration
 const DEFAULT_CONFIG = {
     CROP_RATIO: 1/3,
@@ -31,66 +110,7 @@ async function loadConfig() {
 // Handle extension icon click
 chrome.action.onClicked.addListener(async (tab) => {
     console.log('Extension icon clicked!', tab);
-    
-    try {
-        if (!tab) {
-            console.error('No active tab found');
-            return;
-        }
-        
-        console.log('Tab info:', tab.url, tab.id);
-        
-        const config = await loadConfig();
-        console.log('Config loaded:', config);
-        
-        // First inject a simple test to see if injection works
-        await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            function: () => {
-                console.log('Script injected successfully!');
-                const testDiv = document.createElement('div');
-                testDiv.id = 'pip-test-message';
-                testDiv.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    left: 20px;
-                    background: #28a745;
-                    color: white;
-                    padding: 10px;
-                    border-radius: 5px;
-                    z-index: 999999;
-                    font-family: Arial, sans-serif;
-                `;
-                testDiv.textContent = 'Extension activated! Looking for video...';
-                document.body.appendChild(testDiv);
-                
-                setTimeout(() => {
-                    if (testDiv.parentNode) testDiv.remove();
-                }, 3000);
-            }
-        });
-        
-        // Then inject the main processor
-        await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            function: createVideoProcessor,
-            args: [config]
-        });
-        
-        console.log('Video processor activated!');
-    } catch (error) {
-        console.error('PiP activation failed:', error);
-        // Show user feedback via notification
-        try {
-            await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                function: showErrorMessage,
-                args: [error.message]
-            });
-        } catch (e) {
-            console.error('Could not show error message:', e);
-        }
-    }
+    activatePiP(tab);
 });
 
 // Show error message to user
@@ -160,7 +180,123 @@ function createVideoProcessor(config) {
         
         console.log('Selected video:', targetVideo);
 
-        // 2. Wait for video to be ready
+        // 2. Set video quality to 720p if available
+        function setVideoQuality(video) {
+            try {
+                // Check if video has quality settings (common in streaming sites)
+                if (video.videoTracks && video.videoTracks.length > 0) {
+                    console.log('Available video tracks:', video.videoTracks);
+                }
+                
+                // Try to access video element's quality settings
+                if (video.getVideoPlaybackQuality) {
+                    const quality = video.getVideoPlaybackQuality();
+                    console.log('Current video quality:', quality);
+                }
+                
+                // For sites with custom quality selectors, try to find and set 720p
+                const qualitySelectors = [
+                    '.quality-selector',
+                    '.video-quality',
+                    '.resolution-selector',
+                    '[data-quality]',
+                    '.settings-menu'
+                ];
+                
+                for (const selector of qualitySelectors) {
+                    const qualityControl = document.querySelector(selector);
+                    if (qualityControl) {
+                        console.log('Found quality control:', qualityControl);
+                        
+                        // Look for 720p option
+                        const options = qualityControl.querySelectorAll('option, button, [data-quality*="720"]');
+                        for (const option of options) {
+                            if (option.textContent.includes('720') || option.value.includes('720')) {
+                                console.log('Setting quality to 720p');
+                                option.click();
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Try setting video attributes for quality
+                video.setAttribute('preload', 'metadata');
+                video.setAttribute('data-quality', '720p');
+                
+            } catch (error) {
+                console.log('Could not set video quality:', error);
+            }
+        }
+        
+        // Apply quality settings
+        setVideoQuality(targetVideo);
+        
+        // Site-specific quality handling
+        function setSiteSpecificQuality() {
+            const hostname = window.location.hostname.toLowerCase();
+            
+            try {
+                // Chaturbate specific quality settings
+                if (hostname.includes('chaturbate')) {
+                    // Look for Chaturbate's quality controls
+                    const qualityButtons = document.querySelectorAll('[data-quality], .quality-button, .resolution-button');
+                    for (const button of qualityButtons) {
+                        if (button.textContent.includes('720') || button.getAttribute('data-quality') === '720') {
+                            console.log('Setting Chaturbate quality to 720p');
+                            button.click();
+                            break;
+                        }
+                    }
+                }
+                
+                // YouTube specific
+                else if (hostname.includes('youtube')) {
+                    // YouTube quality selector
+                    setTimeout(() => {
+                        const settingsButton = document.querySelector('.ytp-settings-button');
+                        if (settingsButton) {
+                            settingsButton.click();
+                            setTimeout(() => {
+                                const qualityOption = document.querySelector('[role="menuitem"]:contains("Quality")');
+                                if (qualityOption) qualityOption.click();
+                                setTimeout(() => {
+                                    const quality720 = document.querySelector('[role="menuitemradio"]:contains("720")');
+                                    if (quality720) quality720.click();
+                                }, 200);
+                            }, 200);
+                        }
+                    }, 1000);
+                }
+                
+                // Twitch specific
+                else if (hostname.includes('twitch')) {
+                    setTimeout(() => {
+                        const settingsButton = document.querySelector('[data-a-target="player-settings-button"]');
+                        if (settingsButton) {
+                            settingsButton.click();
+                            setTimeout(() => {
+                                const qualityOption = document.querySelector('[data-a-target="player-settings-menu-item-quality"]');
+                                if (qualityOption) qualityOption.click();
+                                setTimeout(() => {
+                                    const quality720 = document.querySelector('[data-a-target*="720"]');
+                                    if (quality720) quality720.click();
+                                }, 200);
+                            }, 200);
+                        }
+                    }, 1000);
+                }
+                
+                console.log(`Applied quality settings for ${hostname}`);
+            } catch (error) {
+                console.log('Site-specific quality setting failed:', error);
+            }
+        }
+        
+        // Apply site-specific quality after a short delay
+        setTimeout(setSiteSpecificQuality, 2000);
+        
+        // 3. Wait for video to be ready
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
                 reject(new Error('Video metadata loading timed out after 10 seconds'));

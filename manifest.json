@@ -14,5 +14,14 @@
       "128": "icons/icon128.png"
     }
   },
+  "commands": {
+    "activate-pip": {
+      "suggested_key": {
+        "default": "Ctrl+Q",
+        "mac": "Command+Q"
+      },
+      "description": "Activate PiP Resizer"
+    }
+  },
   "options_page": "options.html"
 }
